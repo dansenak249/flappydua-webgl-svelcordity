@@ -1,20 +1,17 @@
-import { json } from '@sveltejs/kit';
-import { connectDB } from '$lib/server/db.js';
+import { json } from "@sveltejs/kit";
+import { connectDB } from "$lib/server/db.js";
 
 export async function POST({ request }) {
     const { userId, score } = await request.json();
-
     const db = await connectDB();
-    const collection = db.collection("scores");
 
-    const user = await collection.findOne({ userId });
+    const existing = await db.collection("scores").findOne({ userId });
 
-    if (!user) {
-        await collection.insertOne({ userId, maxScore: score });
-    } else if (score > user.maxScore) {
-        await collection.updateOne(
+    if (!existing || score > existing.maxScore) {
+        await db.collection("scores").updateOne(
             { userId },
-            { $set: { maxScore: score } }
+            { $set: { maxScore: score } },
+            { upsert: true }
         );
     }
 

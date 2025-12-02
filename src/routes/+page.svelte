@@ -3,63 +3,69 @@
 	import { DiscordHelper } from "$lib/utils/DiscordHelper";
 	import { config } from "$lib/config";
 
-	let unityCanvas: any;
-	let unityInstance;
+	let unityCanvas: HTMLCanvasElement | null = null;
+	let unityInstance: any = null;
 	let discordHelper: DiscordHelper;
 
-	// ============================
-	// 🔥 1. BRIDGE GỬI SCORE LÊN SERVER
-	// ============================
-	async function sendScoreToServer(score: number) {
-	try {
-	console.log("Sending score to server:", score);
+	// Declare discordSdk globally to avoid ReferenceError
+	declare const discordSdk: any;
 
-	const res = await fetch("/api/score", {
-	method: "POST",
-	headers: { "Content-Type": "application/json" },
-	body: JSON.stringify({ score })
-	});
-
-	const data = await res.json();
-	console.log("Server response:", data);
-	} catch (err) {
-	console.error("Failed to send score:", err);
-	}
-	}
-
-	// ============================
-	// 🔥 2. HÀM UNITY GỌI TỚI
-	// (Unity → JS)
-	// ============================
-	(window as any).receiveScoreFromUnity = (score: number) => {
-	console.log("Unity sent score:", score);
-	sendScoreToServer(score);
-	};
-
-	// ============================
-	// Unity Loader
-	// ============================
 	onMount(() => {
+	// ===== Fix proxy for discordsays.com =====
 	if (window.location.hostname.includes("discordsays.com")) {
 	const originalFetch = window.fetch;
-
 	window.fetch = (input, init) => {
 	return originalFetch(".proxy/" + input, init);
 	};
 	}
 
+	// ===== Discord SDK initialization =====
+	async function initDiscord() {
+	await discordSdk.ready();
+	const user = await discordSdk.commands.getUser();
+	window.__discord_user_id = user.id;
+	}
+	initDiscord();
+
+	// ===== Unity → Server =====
+	window.SendScoreToServer = async (score: number) => {
+	await fetch("/api/score/update", {
+	method: "POST",
+	headers: { "Content-Type": "application/json" },
+	body: JSON.stringify({
+	userId: window.__discord_user_id || "0",
+	score
+	})
+	});
+	};
+
+	// ===== Server → Unity =====
+	window.GetBestScoreFromServer = async () => {
+	const res = await fetch(`/api/score/get?userId=${window.__discord_user_id || "0"}`);
+	const data = await res.json();
+	unityInstance?.SendMessage(
+	"ScoreService",
+	"OnReceiveBestScore",
+	data.maxScore ?? 0
+	);
+	};
+
+	// Setup Discord Helper + Unity Loader
 	discordHelper = new DiscordHelper();
 	discordHelper.setupParentIframe();
+
 	initializeUnity();
 	});
 
 	function initializeUnity() {
+	if (!unityCanvas) return;
+
 	const script = document.createElement("script");
 	script.src = "/Build/WebGL.loader.js";
 	script.async = true;
 
 	script.onload = () => {
-	createUnityInstance(unityCanvas, {
+	createUnityInstance(unityCanvas!, {
 	dataUrl: "/Build/WebGL.data.gz",
 	frameworkUrl: "/Build/WebGL.framework.js.gz",
 	codeUrl: "/Build/WebGL.wasm.gz",
@@ -67,31 +73,21 @@
 	companyName: config.COMPANY_NAME,
 	productName: config.PRODUCT_NAME,
 	productVersion: config.PRODUCT_VERSION,
-	}).then((instance) => {
+	}).then((instance: any) => {
 	unityInstance = instance;
-
-	console.log("Unity instance loaded");
-
-	// ============================
-	// 🔥 3. GỬI BRIDGE SANG UNITY
-	// (JS → Unity)
-	// ============================
-	// Ví dụ gọi Unity để test
-	// unityInstance.SendMessage("GameController", "JSIsReady", "");
-
 	});
 	};
 
 	document.body.appendChild(script);
 
+	// Mobile layout
 	if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-	var meta = document.createElement("meta");
+	const meta = document.createElement("meta");
 	meta.name = "viewport";
 	meta.content =
 	"width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes";
-	document.getElementsByTagName("head")[0].appendChild(meta);
+	document.head.appendChild(meta);
 
-	unityCanvas = document.querySelector("#unity-canvas");
 	unityCanvas.style.width = "100%";
 	unityCanvas.style.height = "100%";
 	unityCanvas.style.position = "fixed";
@@ -102,7 +98,7 @@
 
 <body>
 	<canvas
-        bind:this={"unityCanvas"
+        bind:this={unityCanvas}
         id="unity-canvas"
         tabindex="-1"
         width="960"
