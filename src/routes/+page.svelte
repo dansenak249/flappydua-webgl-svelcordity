@@ -29,7 +29,7 @@
 
 	// ===== Unity → Server =====
 	window.SendScoreToServer = async (score: number) => {
-	await fetch("/api/score/update", {
+	await fetch("/unity/score/update", {
 	method: "POST",
 	headers: { "Content-Type": "application/json" },
 	body: JSON.stringify({
@@ -41,7 +41,7 @@
 
 	// ===== Server → Unity =====
 	window.GetBestScoreFromServer = async () => {
-	const res = await fetch(`/api/score/get?userId=${window.__discord_user_id || "0"}`);
+	const res = await fetch(`/unity/score/get?userId=${window.__discord_user_id || "0"}`);
 	const data = await res.json();
 	unityInstance?.SendMessage(
 	"ScoreService",
