@@ -3,17 +3,21 @@ import { defineConfig } from "vite";
 import basicSsl from "@vitejs/plugin-basic-ssl";
 
 export default defineConfig({
-    plugins: [basicSsl(), sveltekit()],
-    ssr: {
-        external: ['mongodb']
-    },
-    server: {
-        proxy: {},
-
-        allowedHosts: [
-          'plumbing-andrews-montreal-linux.trycloudflare.com',
-          '*.trycloudflare.com',
-          '*.ngrok-free.app'
-        ],
-    },
+plugins: [basicSsl(), sveltekit()],
+ssr: {
+external: ['mongodb']
+},
+build: {
+rollupOptions: {
+external: ['mongodb'] 
+}
+},
+server: {
+proxy: {},
+allowedHosts: [
+'plumbing-andrews-montreal-linux.trycloudflare.com',
+'*.trycloudflare.com',
+'*.ngrok-free.app'
+],
+},
 });
