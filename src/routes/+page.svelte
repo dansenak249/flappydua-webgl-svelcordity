@@ -7,7 +7,7 @@
 	let unityInstance: any = null;
 	let discordHelper: DiscordHelper;
 
-	let discordSdk: any; // <-- SDK thực sự sẽ được init trong onMount
+	let discordSdk: any;
 
 	onMount(async () => {
 	// ===== Fix proxy for discordsays.com =====
@@ -23,83 +23,80 @@
 	console.log("Initializing Discord SDK...");
 	discordSdk = await window.initializeDiscordSdk();
 	} else {
-	console.error("Discord SDK failed to load! Missing <script src=\"https://sdk.discordactivities.com/sdk.js\">
-		?");
-		return;
-		}
+	console.error(
+	'Discord SDK failed to load! Missing <script src="https://sdk.discordactivities.com/sdk.js"></script>'
+	);
+	return;
+	}
 
-		// ===== Discord SDK Initialization =====
-		await discordSdk.ready();
+	// ===== Discord SDK Initialization =====
+	await discordSdk.ready();
 
-		const user = await discordSdk.commands.getUser();
-		window.__discord_user_id = user.id;
-		console.log("Discord User:", user);
+	const user = await discordSdk.commands.getUser();
+	window.__discord_user_id = user.id;
+	console.log("Discord User:", user);
 
-		// ===== Unity → Server =====
-		window.SendScoreToServer = async (score: number) => {
-		await fetch("/unity/score/update", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({
-		userId: window.__discord_user_id || "0",
-		score
-		})
-		});
-		};
+	// ===== Unity → Server =====
+	window.SendScoreToServer = async (score: number) => {
+	await fetch("/unity/score/update", {
+	method: "POST",
+	headers: { "Content-Type": "application/json" },
+	body: JSON.stringify({
+	userId: window.__discord_user_id || "0",
+	score
+	})
+	});
+	};
 
-		// ===== Server → Unity =====
-		window.GetBestScoreFromServer = async () => {
-		const res = await fetch(`/unity/score/get?userId=${window.__discord_user_id || "0"}`);
-		const data = await res.json();
-		unityInstance?.SendMessage(
-		"ScoreService",
-		"OnReceiveBestScore",
-		data.maxScore ?? 0
-		);
-		};
+	// ===== Server → Unity =====
+	window.GetBestScoreFromServer = async () => {
+	const res = await fetch(`/unity/score/get?userId=${window.__discord_user_id || "0"}`);
+	const data = await res.json();
+	unityInstance?.SendMessage("ScoreService", "OnReceiveBestScore", data.maxScore ?? 0);
+	};
 
-		// ===== Setup Discord Helper + Unity Loader =====
-		discordHelper = new DiscordHelper();
-		discordHelper.setupParentIframe();
+	// ===== Setup Discord Helper + Unity Loader =====
+	discordHelper = new DiscordHelper();
+	discordHelper.setupParentIframe();
 
-		initializeUnity();
-		});
+	initializeUnity();
+	});
 
-		function initializeUnity() {
-		if (!unityCanvas) return;
+	function initializeUnity() {
+	if (!unityCanvas) return;
 
-		const script = document.createElement("script");
-		script.src = "/Build/WebGL.loader.js";
-		script.async = true;
+	const script = document.createElement("script");
+	script.src = "/Build/WebGL.loader.js";
+	script.async = true;
 
-		script.onload = () => {
-		createUnityInstance(unityCanvas!, {
-		dataUrl: "/Build/WebGL.data.gz",
-		frameworkUrl: "/Build/WebGL.framework.js.gz",
-		codeUrl: "/Build/WebGL.wasm.gz",
-		streamingAssetsUrl: "StreamingAssets",
-		companyName: config.COMPANY_NAME,
-		productName: config.PRODUCT_NAME,
-		productVersion: config.PRODUCT_VERSION,
-		}).then((instance: any) => {
-		unityInstance = instance;
-		});
-		};
+	script.onload = () => {
+	createUnityInstance(unityCanvas!, {
+	dataUrl: "/Build/WebGL.data.gz",
+	frameworkUrl: "/Build/WebGL.framework.js.gz",
+	codeUrl: "/Build/WebGL.wasm.gz",
+	streamingAssetsUrl: "StreamingAssets",
+	companyName: config.COMPANY_NAME,
+	productName: config.PRODUCT_NAME,
+	productVersion: config.PRODUCT_VERSION
+	}).then((instance: any) => {
+	unityInstance = instance;
+	});
+	};
 
-		document.body.appendChild(script);
+	document.body.appendChild(script);
 
-		// Mobile layout
-		if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-		const meta = document.createElement("meta");
-		meta.name = "viewport";
-		meta.content =
-		"width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes";
-		document.head.appendChild(meta);
+	// Mobile layout
+	if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+	const meta = document.createElement("meta");
+	meta.name = "viewport";
+	meta.content =
+	"width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes";
+	document.head.appendChild(meta);
 
-		unityCanvas.style.width = "100%";
-		unityCanvas.style.height = "100%";
-		unityCanvas.style.position = "fixed";
-		document.body.style.textAlign = "left";
-		}
-		}
-	</script>
+	unityCanvas.style.width = "100%";
+	unityCanvas.style.height = "100%";
+	unityCanvas.style.position = "fixed";
+	document.body.style.textAlign = "left";
+	}
+	}
+</script>
