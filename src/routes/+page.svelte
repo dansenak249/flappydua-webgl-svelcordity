@@ -50,15 +50,9 @@
 
 	// ===== Server → Unity =====
 	window.GetBestScoreFromServer = async () => {
-	const res = await fetch(
-	`/unity/score/get?userId=${window.__discord_user_id || "0"}`
-	);
+	const res = await fetch(`/unity/score/get?userId=${window.__discord_user_id || "0"}`);
 	const data = await res.json();
-	unityInstance?.SendMessage(
-	"ScoreService",
-	"OnReceiveBestScore",
-	data.maxScore ?? 0
-	);
+	unityInstance?.SendMessage("ScoreService", "OnReceiveBestScore", data.maxScore ?? 0);
 	};
 
 	// ===== Setup Discord Helper + Unity Loader =====
