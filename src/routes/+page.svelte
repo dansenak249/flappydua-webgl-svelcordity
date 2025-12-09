@@ -7,10 +7,9 @@
 	let unityInstance: any = null;
 	let discordHelper: DiscordHelper;
 
-	// Declare discordSdk globally to avoid ReferenceError
-	declare const discordSdk: any;
+	let discordSdk: any; // <-- SDK thực sự sẽ được init trong onMount
 
-	onMount(() => {
+	onMount(async () => {
 	// ===== Fix proxy for discordsays.com =====
 	if (window.location.hostname.includes("discordsays.com")) {
 	const originalFetch = window.fetch;
@@ -19,106 +18,88 @@
 	};
 	}
 
-	// ===== Discord SDK initialization =====
-	async function initDiscord() {
-	await discordSdk.ready();
-	const user = await discordSdk.commands.getUser();
-	window.__discord_user_id = user.id;
-	}
-	initDiscord();
+	// ===== Load Discord Activities SDK =====
+	if (typeof window.initializeDiscordSdk === "function") {
+	console.log("Initializing Discord SDK...");
+	discordSdk = await window.initializeDiscordSdk();
+	} else {
+	console.error("Discord SDK failed to load! Missing <script src=\"https://sdk.discordactivities.com/sdk.js\">
+		?");
+		return;
+		}
 
-	// ===== Unity → Server =====
-	window.SendScoreToServer = async (score: number) => {
-	await fetch("/unity/score/update", {
-	method: "POST",
-	headers: { "Content-Type": "application/json" },
-	body: JSON.stringify({
-	userId: window.__discord_user_id || "0",
-	score
-	})
-	});
-	};
+		// ===== Discord SDK Initialization =====
+		await discordSdk.ready();
 
-	// ===== Server → Unity =====
-	window.GetBestScoreFromServer = async () => {
-	const res = await fetch(`/unity/score/get?userId=${window.__discord_user_id || "0"}`);
-	const data = await res.json();
-	unityInstance?.SendMessage(
-	"ScoreService",
-	"OnReceiveBestScore",
-	data.maxScore ?? 0
-	);
-	};
+		const user = await discordSdk.commands.getUser();
+		window.__discord_user_id = user.id;
+		console.log("Discord User:", user);
 
-	// Setup Discord Helper + Unity Loader
-	discordHelper = new DiscordHelper();
-	discordHelper.setupParentIframe();
+		// ===== Unity → Server =====
+		window.SendScoreToServer = async (score: number) => {
+		await fetch("/unity/score/update", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({
+		userId: window.__discord_user_id || "0",
+		score
+		})
+		});
+		};
 
-	initializeUnity();
-	});
+		// ===== Server → Unity =====
+		window.GetBestScoreFromServer = async () => {
+		const res = await fetch(`/unity/score/get?userId=${window.__discord_user_id || "0"}`);
+		const data = await res.json();
+		unityInstance?.SendMessage(
+		"ScoreService",
+		"OnReceiveBestScore",
+		data.maxScore ?? 0
+		);
+		};
 
-	function initializeUnity() {
-	if (!unityCanvas) return;
+		// ===== Setup Discord Helper + Unity Loader =====
+		discordHelper = new DiscordHelper();
+		discordHelper.setupParentIframe();
 
-	const script = document.createElement("script");
-	script.src = "/Build/WebGL.loader.js";
-	script.async = true;
+		initializeUnity();
+		});
 
-	script.onload = () => {
-	createUnityInstance(unityCanvas!, {
-	dataUrl: "/Build/WebGL.data.gz",
-	frameworkUrl: "/Build/WebGL.framework.js.gz",
-	codeUrl: "/Build/WebGL.wasm.gz",
-	streamingAssetsUrl: "StreamingAssets",
-	companyName: config.COMPANY_NAME,
-	productName: config.PRODUCT_NAME,
-	productVersion: config.PRODUCT_VERSION,
-	}).then((instance: any) => {
-	unityInstance = instance;
-	});
-	};
+		function initializeUnity() {
+		if (!unityCanvas) return;
 
-	document.body.appendChild(script);
+		const script = document.createElement("script");
+		script.src = "/Build/WebGL.loader.js";
+		script.async = true;
 
-	// Mobile layout
-	if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-	const meta = document.createElement("meta");
-	meta.name = "viewport";
-	meta.content =
-	"width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes";
-	document.head.appendChild(meta);
+		script.onload = () => {
+		createUnityInstance(unityCanvas!, {
+		dataUrl: "/Build/WebGL.data.gz",
+		frameworkUrl: "/Build/WebGL.framework.js.gz",
+		codeUrl: "/Build/WebGL.wasm.gz",
+		streamingAssetsUrl: "StreamingAssets",
+		companyName: config.COMPANY_NAME,
+		productName: config.PRODUCT_NAME,
+		productVersion: config.PRODUCT_VERSION,
+		}).then((instance: any) => {
+		unityInstance = instance;
+		});
+		};
 
-	unityCanvas.style.width = "100%";
-	unityCanvas.style.height = "100%";
-	unityCanvas.style.position = "fixed";
-	document.body.style.textAlign = "left";
-	}
-	}
-</script>
+		document.body.appendChild(script);
 
-<body>
-	<canvas
-        bind:this={unityCanvas}
-        id="unity-canvas"
-        tabindex="-1"
-        width="960"
-        style="
-            width: 100vw;
-            height: 100vh;
-            background: url('/Build/WebGL.jpg') center / cover;
-        "
-    ></canvas>
-</body>
+		// Mobile layout
+		if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+		const meta = document.createElement("meta");
+		meta.name = "viewport";
+		meta.content =
+		"width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes";
+		document.head.appendChild(meta);
 
-<style>
-	body {
-	margin: 0px;
-	background-color: #000000;
-	padding: 0px;
-	text-align: center;
-	border: 0;
-	height: 100vh;
-	width: 100vw;
-	overflow: hidden;
-	}
-</style>
+		unityCanvas.style.width = "100%";
+		unityCanvas.style.height = "100%";
+		unityCanvas.style.position = "fixed";
+		document.body.style.textAlign = "left";
+		}
+		}
+	</script>
