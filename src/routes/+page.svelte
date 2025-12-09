@@ -24,7 +24,7 @@
 	discordSdk = await window.initializeDiscordSdk();
 	} else {
 	console.error(
-	'Discord SDK failed to load! Missing <script src="https://sdk.discordactivities.com/sdk.js"></script>'
+	'Discord SDK failed to load!'
 	);
 	return;
 	}
