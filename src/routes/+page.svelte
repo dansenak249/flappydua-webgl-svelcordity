@@ -18,23 +18,34 @@
 	};
 	}
 
-	// ===== Load Discord Activities SDK =====
-	if (typeof window.initializeDiscordSdk === "function") {
-	console.log("Initializing Discord SDK...");
-	discordSdk = await window.initializeDiscordSdk();
-	} else {
-	console.error(
-	'Discord SDK failed to load!'
+	// ===== Load Discord Activities SDK safely =====
+	if (typeof window.initializeDiscordSdk !== "function") {
+	console.warn(
+	"Discord SDK not detected. Using fallback mode."
 	);
-	return;
+	// Fallback fake SDK để build và chạy local
+	window.initializeDiscordSdk = async () => ({
+	ready: async () => {},
+	commands: {
+	getUser: async () => ({ id: "0", username: "Guest" })
+	}
+	});
 	}
 
-	// ===== Discord SDK Initialization =====
+	// ===== Initialize Discord SDK =====
+	try {
+	discordSdk = await window.initializeDiscordSdk();
 	await discordSdk.ready();
 
 	const user = await discordSdk.commands.getUser();
 	window.__discord_user_id = user.id;
 	console.log("Discord User:", user);
+	} catch (err) {
+	console.error(
+	"Discord SDK failed to load or initialize:", err
+	);
+	window.__discord_user_id = "0"; // fallback
+	}
 
 	// ===== Unity → Server =====
 	window.SendScoreToServer = async (score: number) => {
@@ -50,9 +61,15 @@
 
 	// ===== Server → Unity =====
 	window.GetBestScoreFromServer = async () => {
-	const res = await fetch(`/unity/score/get?userId=${window.__discord_user_id || "0"}`);
+	const res = await fetch(
+	`/unity/score/get?userId=${window.__discord_user_id || "0"}`
+	);
 	const data = await res.json();
-	unityInstance?.SendMessage("ScoreService", "OnReceiveBestScore", data.maxScore ?? 0);
+	unityInstance?.SendMessage(
+	"ScoreService",
+	"OnReceiveBestScore",
+	data.maxScore ?? 0
+	);
 	};
 
 	// ===== Setup Discord Helper + Unity Loader =====
@@ -100,3 +117,16 @@
 	}
 	}
 </script>
+
+<canvas
+	bind:this={"unityCanvas"
+	id="unity-canvas"
+	tabindex="-1"
+	width="960"
+	style="
+	width: 100vw;
+	height: 100vh;
+	background: url('/Build/WebGL.jpg') center / cover;
+	"
+	>
+</canvas>
