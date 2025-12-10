@@ -119,7 +119,7 @@
 </script>
 
 <canvas
-	bind:this={"unityCanvas"
+	bind:this={unityCanvas}
 	id="unity-canvas"
 	tabindex="-1"
 	width="960"
@@ -130,4 +130,5 @@
 	"
 >
 </canvas>
+
 
