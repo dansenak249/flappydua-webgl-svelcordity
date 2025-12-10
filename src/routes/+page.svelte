@@ -124,9 +124,10 @@
 	tabindex="-1"
 	width="960"
 	style="
-	width: 100vw;
-	height: 100vh;
-	background: url('/Build/WebGL.jpg') center / cover;
+		width: 100vw;
+		height: 100vh;
+		background: url('/Build/WebGL.jpg') center / cover;
 	"
-	>
+>
 </canvas>
+
